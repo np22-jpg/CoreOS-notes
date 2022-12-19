@@ -1,0 +1,6 @@
+[submodule "netmaker"]
+	path = netmaker
+	url = https://github.com/gravitl/netmaker.git
+[submodule "layering-examples"]
+	path = layering-examples
+	url = https://github.com/coreos/layering-examples.git

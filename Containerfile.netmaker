@@ -1,0 +1,52 @@
+## build with  podman build -f Containerfile.netmaker -t netmaker &&  podman run --rm --rmi -it netmaker
+
+# Repo to clone from
+ARG URL=https://api.github.com/repos/gravitl/netmaker/releases/latest
+
+FROM  quay.io/almalinuxorg/9-minimal as builder
+RUN microdnf install --assumeyes tar wget jq go rsync iptables wireguard-tools
+# FROM quay.io/fedora/fedora as builder
+# RUN dnf install --assumeyes wget jq go rsync iptables-nft wireguard-tools
+
+# ARG version
+# ARG tags
+ENV GO111MODULE=auto
+
+# Grab needed dependencies for the container. Thanks jstone#7474!
+RUN rpm -ql iptables-nft wireguard-tools | \
+    grep -v -e "doc" -e "bash-completion" -e "licenses" -e "man" -e ".build-id" > /rpms.txt
+RUN rsync -v -L -a -R --files-from="/rpms.txt" / /rpms
+
+
+# Grab tarball of latest release
+ARG URL
+RUN wget -q -O- "$(curl $URL | jq -r ".tarball_url")" |  tar -xz -C /root
+
+# Move contents of output tarball
+RUN mkdir /src && mv /root/*/* /src
+WORKDIR /src
+
+# Build!
+RUN GOOS=linux CGO_ENABLED=1 go build -tags ${tags} -ldflags="-s -X 'main.version=${version}'" .
+
+
+
+# Create final image
+FROM quay.io/almalinuxorg/9-micro
+COPY --from=builder /rpms .
+
+WORKDIR /root
+
+RUN mkdir -p /etc/netclient/config
+COPY --from=builder /src/netmaker .
+COPY --from=builder /src/config config
+
+EXPOSE 8081
+# ENTRYPOINT ["./netmaker"]
+
+########################################
+#   iptables/wireguard-tools    ~6M    #
+#   Netmaker executable:        20M    #
+#   ubi9-micro decompressed:    23M    #
+#   Total:                      49M    #
+########################################
