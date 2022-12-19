@@ -1,0 +1,26 @@
+## build with  podman build -f Containerfile.traefik -t traefik &&  podman run --rm --rmi -it traefik
+
+# Repo to clone from
+ARG URL=https://api.github.com/repos/traefik/traefik/releases/latest
+
+FROM  quay.io/almalinuxorg/9-minimal AS builder
+RUN microdnf install --assumeyes git gcc tar ca-certificates podman make wget jq golang
+
+# Grab tarball of latest release
+ARG URL
+RUN curl $URL | jq -r ".name" > VER.txt
+RUN echo $(cat VER.txt)_linux_amd64.tar.gz > FILE.txt
+
+RUN wget "https://github.com/traefik/traefik/releases/download/$(cat VER.txt)/traefik_$(cat FILE.txt)"
+RUN wget -q -O- "https://github.com/traefik/traefik/releases/download/$(cat VER.txt)/traefik_$(cat VER.txt)_checksums.txt" | grep -q "$(sha256sum traefik_$(cat FILE.txt))"
+
+RUN tar -xf traefik_$(cat FILE.txt) -C /root
+
+# Create final image
+FROM quay.io/almalinuxorg/9-micro
+
+WORKDIR /root
+COPY --from=builder /root/traefik /root
+
+EXPOSE 80
+ENTRYPOINT ["./traefik"]
