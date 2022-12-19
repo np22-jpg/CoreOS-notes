@@ -1,0 +1,34 @@
+# build app
+FROM  quay.io/almalinuxorg/9-minimal AS builder
+RUN microdnf module --assumeyes enable nodejs
+RUN microdnf update --assumeyes
+RUN microdnf install --assumeyes git rsync wget jq openssl openssl-libs zlib libbrotli libstdc++ tar npm ca-certificates zlib
+# RUN microdnf install --assumeyes install nodejs:development
+
+WORKDIR /root
+RUN curl "https://release-monitoring.org/api/v2/versions/?project_id=190206" > output.txt
+RUN cat output.txt | jq --raw-output '.stable_versions[0]' > npm_version.txt
+RUN npm install -g npm@$(cat npm_version.txt)
+# RUN wget -q -O- https://nodejs.org/dist/v$(cat node_version.txt)/node-v$(cat node_version.txt)-linux-x64.tar.gz | tar -xz
+
+
+
+RUN git clone https://github.com/titaniumnetwork-dev/Ultraviolet-App.git /Ultraviolet-App
+WORKDIR /Ultraviolet-App
+RUN npm install && npm upgrade
+
+# RUN touch /etc/npmignore
+RUN rpm -ql openssl openssl-libs zlib libbrotli libstdc++ nodejs ca-certificates | \
+    grep -v -e "/doc/" -e "/man/" -e "/*build-id/" -e "/licenses/" \
+    -e "/gdb/" -e "/gcc-11/" -e "/rpm/" > rpms.txt
+RUN rsync -v -L -a -R --files-from="rpms.txt" / /rpms
+
+# build final
+FROM quay.io/almalinuxorg/9-micro
+COPY --from=builder /rpms .
+
+WORKDIR /root
+COPY --from=builder /Ultraviolet-App /root/
+
+EXPOSE 8080/tcp
+ENTRYPOINT ["node", "src/index.js"]

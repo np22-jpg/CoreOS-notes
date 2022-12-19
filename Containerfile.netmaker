@@ -3,7 +3,7 @@
 # Repo to clone from
 ARG URL=https://api.github.com/repos/gravitl/netmaker/releases/latest
 
-FROM  quay.io/almalinuxorg/9-minimal as builder
+FROM  quay.io/almalinuxorg/9-minimal AS builder
 RUN microdnf install --assumeyes tar wget jq go rsync iptables wireguard-tools
 # FROM quay.io/fedora/fedora as builder
 # RUN dnf install --assumeyes wget jq go rsync iptables-nft wireguard-tools
@@ -42,7 +42,7 @@ COPY --from=builder /src/netmaker .
 COPY --from=builder /src/config config
 
 EXPOSE 8081
-# ENTRYPOINT ["./netmaker"]
+ENTRYPOINT ["./netmaker"]
 
 ########################################
 #   iptables/wireguard-tools    ~6M    #
