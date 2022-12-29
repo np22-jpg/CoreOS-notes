@@ -1,1 +1,5 @@
-test
+.npm
+.env
+.bash-promise
+out
+logs/*

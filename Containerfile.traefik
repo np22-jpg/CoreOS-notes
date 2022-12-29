@@ -4,7 +4,11 @@
 ARG URL=https://api.github.com/repos/traefik/traefik/releases/latest
 
 FROM  quay.io/almalinuxorg/9-minimal AS builder
-RUN microdnf install --assumeyes git gcc tar ca-certificates podman make wget jq golang
+RUN microdnf install --assumeyes gcc tar ca-certificates golang wget rsync jq
+
+RUN rpm -ql ca-certificates | \
+    grep -v -e "/man8/" > rpms.txt
+RUN rsync -v -L -a -R --files-from="rpms.txt" / /rpms
 
 # Grab tarball of latest release
 ARG URL
@@ -18,6 +22,7 @@ RUN tar -xf traefik_$(cat FILE.txt) -C /root
 
 # Create final image
 FROM quay.io/almalinuxorg/9-micro
+COPY --from=builder /rpms .
 
 WORKDIR /root
 COPY --from=builder /root/traefik /root

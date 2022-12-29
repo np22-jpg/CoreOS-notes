@@ -1,9 +1,0 @@
-[submodule "netmaker"]
-	path = netmaker
-	url = https://github.com/gravitl/netmaker.git
-[submodule "layering-examples"]
-	path = layering-examples
-	url = https://github.com/coreos/layering-examples.git
-[submodule "Ultraviolet-App"]
-	path = Ultraviolet-App
-	url = https://github.com/titaniumnetwork-dev/Ultraviolet-App.git
