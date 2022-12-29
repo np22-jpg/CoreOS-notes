@@ -1,0 +1,94 @@
+FROM quay.io/almalinuxorg/9-base AS installer
+
+RUN dnf module --assumeyes enable nodejs
+RUN dnf install --assumeyes --setopt=install_weak_deps=false --nodocs \
+  git jq npm wget nginx
+
+RUN npm install -g npm@$(curl "https://release-monitoring.org/api/v2/versions/?project_id=190206" | jq --raw-output '.stable_versions[0]')
+
+FROM installer AS gitprovider
+
+ARG REPO
+RUN mkdir -p /usr/src/app
+RUN git clone https://github.com/$REPO.git /usr/src/app
+WORKDIR /usr/src/app
+ENV PATH /usr/src/app/node_modules/.bin:$PATH
+# COPY --link ./package*.json .
+RUN npm install
+RUN npm install react-scripts@4.0.3 -g
+COPY . /usr/src/app
+ENV NODE_OPTIONS "--openssl-legacy-provider"
+RUN npm run build
+
+FROM installer AS relprovider
+
+ARG REPO
+RUN mkdir -p /Netmaker-UI /usr/src/app
+RUN wget -q -O- "$(curl https://api.github.com/repos/$REPO/releases/latest | jq -r ".tarball_url")" | tar -xz -C /Netmaker-UI
+RUN mv /Netmaker-UI/*/* /usr/src/app
+WORKDIR /usr/src/app
+ENV PATH /usr/src/app/node_modules/.bin:$PATH
+# COPY --link ./package*.json .
+RUN npm install
+RUN npm install react-scripts@4.0.3 -g
+COPY . /usr/src/app
+ENV NODE_OPTIONS "--openssl-legacy-provider"
+RUN npm run build
+
+FROM installer AS packprovider
+
+RUN dnf install --assumeyes --setopt=install_weak_deps=false --nodocs \
+  --installroot /rpms \
+  --releasever=9 \
+  nodejs ca-certificates nginx-core
+
+RUN dnf clean all \
+  --installroot /rpms
+
+FROM scratch AS git
+
+COPY --from=packprovider /rpms /
+COPY --from=gitprovider /usr/src/app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=gitprovider /usr/src/app/build /usr/share/nginx/html
+COPY --from=gitprovider /usr/src/app/docker-entrypoint.sh /usr/src/app/generate_config_js.sh /
+RUN chmod +x docker-entrypoint.sh generate_config_js.sh
+
+# COPY --from=gitprovider /Netmaker-UI /root/
+
+EXPOSE 8080/tcp
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+FROM scratch AS release
+
+COPY --from=packprovider /rpms /
+COPY --from=relprovider /usr/src/app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=relprovider /usr/src/app/build /usr/share/nginx/html
+COPY --from=relprovider /usr/src/app/docker-entrypoint.sh /usr/src/app/generate_config_js.sh /
+RUN chmod +x docker-entrypoint.sh generate_config_js.sh
+
+# COPY --from=relprovider /Netmaker-UI /root/
+
+EXPOSE 8080/tcp
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# FROM node:17.1.0 as builder
+# RUN mkdir /usr/src/app
+# WORKDIR /usr/src/app
+# ENV PATH /usr/src/app/node_modules/.bin:$PATH
+# COPY package*.json ./
+# RUN npm install --silent
+# RUN npm install react-scripts@4.0.3 -g --silent
+# COPY . /usr/src/app
+# ENV NODE_OPTIONS "--openssl-legacy-provider"
+# RUN npm run build
+
+# FROM nginx:1.21-alpine
+# # RUN rm -rf /etc/nginx/conf.d
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# COPY --from=builder /usr/src/app/build /usr/share/nginx/html
+# COPY docker-entrypoint.sh generate_config_js.sh /
+# RUN chmod +x docker-entrypoint.sh generate_config_js.sh
+# ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# npm install -g serve
+#   serve -s build

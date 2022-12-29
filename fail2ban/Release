@@ -1,0 +1,4 @@
+REPO=fail2ban/fail2ban
+CHANNELS="packaged-geoip packaged"
+
+# git release 

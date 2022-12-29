@@ -1,0 +1,7 @@
+The images containing "geoip" take two environment variables: USER and LICENSE. 
+They are MaxMind credentials that can be provided as environemnt variables, secrets, etc.
+USER might look like 9056940, and is generated along with your MaxMind account.
+LICENSE might look like LwjhjiTODTdN40Qv, and has to be created in the Web UI.
+
+Each respective IP will be sent to MaxMind. An option to download the entire DB and 
+update it periodically is possible, but not currently built with these Containerfiles.

@@ -1,0 +1,38 @@
+Environment Variables:
+CONTAINER_NAME - Matches the name of the directory containing the to-be-built project.
+PLATFORM - Platform to build. (Alma has images for: "linux/amd64 linux/s390x linux/ppc64le linux/arm64")
+CLEAN - Delete localhost/$CONTAINER_NAME before rebuilding. (1 = Delete)
+PULL - Whether to pull new images.
+
+
+TODO:
+Grab latest versions of Fedora and CentOS/RHEL
+Re-create traefik image
+
+IMAGAES TO BE BUILT:
+Klipper
+Octoprint
+Traefik
+Wireguard-Go 
+Netmaker
+Roundcube
+Tor middle node
+Vaultwarden
+Syncstorage
+rspamd
+dovecot
+opensmtpd
+penpot
+photoprism
+nextcloud
+navidrome
+piped
+*arrs (lidarr, radarr, sonarr)
+
+
+
+jolly rancher
+jolly baby
+
+jolly coolade
+neva eat sausage

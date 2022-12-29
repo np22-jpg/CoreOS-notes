@@ -1,0 +1,51 @@
+FROM quay.io/almalinuxorg/9-base AS installer
+
+RUN dnf module --assumeyes enable nodejs
+RUN dnf install --assumeyes --setopt=install_weak_deps=false --nodocs \
+  git jq npm wget
+
+RUN npm install -g npm@$(curl "https://release-monitoring.org/api/v2/versions/?project_id=190206" | jq --raw-output '.stable_versions[0]')
+
+FROM installer AS gitprovider
+
+ARG REPO
+RUN mkdir -p /usr/src/app
+RUN git clone https://github.com/$REPO.git /usr/src/app
+WORKDIR /usr/src/app
+RUN npm install
+
+# FROM installer AS relprovider
+
+# ARG REPO
+# RUN wget -q -O- "$(curl https://api.github.com/repos/$REPO/releases/latest | jq -r ".tarball_url")" |  tar -xz -C /Ultraviolet-App
+# WORKDIR /Ultraviolet-App
+# RUN npm install
+
+FROM installer AS packprovider
+
+RUN dnf install --assumeyes --setopt=install_weak_deps=false --nodocs \
+  --installroot /rpms \
+  --releasever=9 \
+  nodejs ca-certificates
+
+RUN dnf clean all \
+  --installroot /rpms
+
+
+FROM scratch AS git
+
+COPY --from=packprovider /rpms /
+COPY --from=gitprovider /usr/src/app /
+
+EXPOSE 8080/tcp
+ENTRYPOINT ["node", "src/index.js"]
+
+
+# FROM scratch AS release
+
+# COPY --from=packprovider /rpms /
+# COPY --from=relprovider /Ultraviolet-App /root/
+
+# WORKDIR /root
+# EXPOSE 8080/tcp
+# ENTRYPOINT ["node", "src/index.js"]

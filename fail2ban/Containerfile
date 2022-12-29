@@ -1,0 +1,29 @@
+FROM quay.io/almalinuxorg/9-base AS installer
+RUN dnf install epel-release --assumeyes
+
+RUN dnf install --assumeyes --setopt=install_weak_deps=false --nodocs \
+  --installroot /rpms \
+  --releasever=9 \
+  fail2ban-server curl-minimal jq
+
+RUN dnf clean all \
+  --installroot /rpms
+
+# I have no shame
+RUN curl https://raw.githubusercontent.com/crazy-max/docker-fail2ban/master/entrypoint.sh -o /rpms/usr/bin/entrypoint
+RUN chmod +x /rpms/usr/bin/entrypoint
+
+FROM scratch AS packaged
+COPY --from=installer /rpms /
+
+ENTRYPOINT [ "entrypoint" ]
+CMD [ "fail2ban-server", "-f", "-x", "-v", "start" ]
+
+
+FROM packaged AS packaged-geoip
+
+COPY ./fail2ban/geoiplookup.sh /usr/bin/geoiplookup
+RUN chmod +x /usr/bin/geoiplookup
+
+ENTRYPOINT [ "entrypoint" ]
+CMD [ "fail2ban-server", "-f", "-x", "-v", "start" ]
